@@ -1,4 +1,4 @@
-# Contributing to Shazam Malgache 🇲🇬
+# Contributing to Shazam Malgache
 
 *Misaotra* for helping out! Here's the quick path.
 
@@ -16,7 +16,7 @@ Prefer Docker? `docker compose run --rm api pytest -q`.
 ## Ground rules
 
 - **Never commit audio, fingerprint databases, or third-party APKs.** `.gitignore`
-  blocks `data/` and `research/` — keep it that way.
+  blocks `data/` and `research/` -- keep it that way.
 - **Fingerprints only.** Any new ingestion path must drop the audio right after
   hashing (see `del samples` in `ingest.py`). We never persist audio.
 - Only fingerprint songs you have the right to (your own, public-domain/CC,
@@ -25,7 +25,7 @@ Prefer Docker? `docker compose run --rm api pytest -q`.
 ## Style
 
 - Keep it readable and match the surrounding code. Comments in FR or EN both welcome.
-- Add or adjust a test for any behavior change — tests live in `tests/` and must
+- Add or adjust a test for any behavior change -- tests live in `tests/` and must
   stay **offline and deterministic**.
 
 ## Good first issues
@@ -34,4 +34,4 @@ Prefer Docker? `docker compose run --rm api pytest -q`.
 - Smarter peak-picking (per-band density caps) for noisier captures.
 - A nicer demo UI in `web/index.html`.
 
-*Mankasitraka!* 🙏
+*Mankasitraka!*
