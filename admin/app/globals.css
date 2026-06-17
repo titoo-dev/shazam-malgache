@@ -1,0 +1,43 @@
+@import "tailwindcss";
+
+/* Palette inspirée du drapeau malgache (vert / rouge / blanc) sur fond sombre,
+   cohérente avec la page de démo du moteur. */
+@theme {
+  --color-bg: #0e1116;
+  --color-panel: #161c24;
+  --color-panel-2: #1d2530;
+  --color-border: #283341;
+  --color-ink: #e8eef5;
+  --color-muted: #9fb3c8;
+  --color-faint: #6c8098;
+  --color-vert: #00a84e;
+  --color-vert-deep: #007e3a;
+  --color-rouge: #fc3d32;
+}
+
+html,
+body {
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+body {
+  background: radial-gradient(
+    1200px 600px at 80% -10%,
+    #16202c,
+    var(--color-bg)
+  );
+  min-height: 100vh;
+}
+
+::selection {
+  background: var(--color-vert);
+  color: #001a0c;
+}
+
+/* Scrollbar discrète */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) transparent;
+}

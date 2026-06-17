@@ -30,8 +30,11 @@ CREATE INDEX IF NOT EXISTS idx_fp_hash ON fingerprints(hash);
 
 
 def connect(path: str = "shazam.db") -> sqlite3.Connection:
-    conn = sqlite3.connect(path)
+    conn = sqlite3.connect(path, timeout=30.0)
     conn.execute("PRAGMA foreign_keys = ON")
+    # Plusieurs workers d'ingestion peuvent écrire en parallèle : on patiente
+    # plutôt que d'échouer immédiatement sur un verrou.
+    conn.execute("PRAGMA busy_timeout = 30000")
     conn.executescript(SCHEMA)
     return conn
 
@@ -88,3 +91,91 @@ def recognize(conn: sqlite3.Connection, query_hashes: list[tuple[int, int]], top
     for r in results:
         r["song"] = get_song(conn, r["song_id"])
     return results
+
+
+# --- Administration / gestion ----------------------------------------------
+# Fonctions de lecture/écriture utilisées par l'interface de gestion. Elles ne
+# touchent JAMAIS à de l'audio : uniquement métadonnées et compteurs d'empreintes.
+
+
+def list_songs(
+    conn: sqlite3.Connection, q: str = "", limit: int = 50, offset: int = 0
+) -> list[dict]:
+    """Liste les morceaux indexés avec leur nombre d'empreintes (recherche optionnelle)."""
+    where, params = "", []
+    if q:
+        where = "WHERE s.title LIKE ? OR s.artist LIKE ?"
+        params = [f"%{q}%", f"%{q}%"]
+    rows = conn.execute(
+        f"""
+        SELECT s.id, s.title, s.artist, s.source, COUNT(f.hash) AS fp
+        FROM songs s
+        LEFT JOIN fingerprints f ON f.song_id = s.id
+        {where}
+        GROUP BY s.id
+        ORDER BY s.id DESC
+        LIMIT ? OFFSET ?
+        """,
+        [*params, limit, offset],
+    ).fetchall()
+    return [
+        {"id": r[0], "title": r[1], "artist": r[2], "source": r[3], "fingerprints": r[4]}
+        for r in rows
+    ]
+
+
+def count_songs(conn: sqlite3.Connection, q: str = "") -> int:
+    if q:
+        return int(
+            conn.execute(
+                "SELECT COUNT(*) FROM songs WHERE title LIKE ? OR artist LIKE ?",
+                (f"%{q}%", f"%{q}%"),
+            ).fetchone()[0]
+        )
+    return int(conn.execute("SELECT COUNT(*) FROM songs").fetchone()[0])
+
+
+def song_detail(conn: sqlite3.Connection, song_id: int) -> dict | None:
+    """Détail d'un morceau : métadonnées + nombre d'empreintes et de hashes distincts."""
+    song = get_song(conn, song_id)
+    if not song:
+        return None
+    total, distinct = conn.execute(
+        "SELECT COUNT(hash), COUNT(DISTINCT hash) FROM fingerprints WHERE song_id = ?",
+        (song_id,),
+    ).fetchone()
+    song["fingerprints"] = total or 0
+    song["distinct_hashes"] = distinct or 0
+    return song
+
+
+def update_song(
+    conn: sqlite3.Connection, song_id: int, title: str, artist: str
+) -> dict | None:
+    """Met à jour titre/artiste d'un morceau (les empreintes ne changent pas)."""
+    conn.execute(
+        "UPDATE songs SET title = ?, artist = ? WHERE id = ?", (title, artist, song_id)
+    )
+    conn.commit()
+    return get_song(conn, song_id)
+
+
+def delete_song(conn: sqlite3.Connection, song_id: int) -> bool:
+    """Supprime un morceau et ses empreintes (cascade)."""
+    cur = conn.execute("DELETE FROM songs WHERE id = ?", (song_id,))
+    conn.execute("DELETE FROM fingerprints WHERE song_id = ?", (song_id,))
+    conn.commit()
+    return cur.rowcount > 0
+
+
+def stats(conn: sqlite3.Connection) -> dict:
+    """Statistiques globales de la base d'empreintes."""
+    songs = int(conn.execute("SELECT COUNT(*) FROM songs").fetchone()[0])
+    fps = int(conn.execute("SELECT COUNT(*) FROM fingerprints").fetchone()[0])
+    distinct = int(conn.execute("SELECT COUNT(DISTINCT hash) FROM fingerprints").fetchone()[0])
+    return {
+        "songs": songs,
+        "fingerprints": fps,
+        "distinct_hashes": distinct,
+        "avg_fingerprints": round(fps / songs) if songs else 0,
+    }

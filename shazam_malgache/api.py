@@ -11,21 +11,46 @@ from __future__ import annotations
 
 import os
 import tempfile
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 
-from shazam_malgache import audio_io, db
+from shazam_malgache import admin, audio_io, db, jobs
 from shazam_malgache.fingerprint import fingerprint
 
 # Score minimal pour considérer qu'on a une vraie correspondance (réglable).
 MIN_SCORE = 5
 
-app = FastAPI(title="Shazam Malgache", version="0.1.0")
-
 
 def _db_path() -> str:
     return os.environ.get("SHAZAM_DB", "shazam.db")
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    """Prépare la table des jobs et nettoie les jobs interrompus au démarrage."""
+    conn = db.connect(_db_path())
+    jobs.init(conn)
+    conn.close()
+    yield
+
+
+app = FastAPI(title="Shazam Malgache", version="0.1.0", lifespan=lifespan)
+
+# CORS : l'interface de gestion Next.js (port 3000) appelle l'API. En self-hosting
+# on autorise tout par défaut ; restreignez via SHAZAM_CORS_ORIGINS si besoin.
+_origins = os.environ.get("SHAZAM_CORS_ORIGINS", "*").split(",")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[o.strip() for o in _origins],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# API d'administration (/api/*) consommée par l'interface de gestion.
+app.include_router(admin.router)
 
 
 @app.get("/", response_class=HTMLResponse)

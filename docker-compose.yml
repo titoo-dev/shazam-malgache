@@ -5,7 +5,20 @@ services:
     command: uvicorn shazam_malgache.api:app --host 0.0.0.0 --port 8000
     environment:
       SHAZAM_DB: /data/shazam.db
+      CATALOG_DB: /data/catalog.db   # référentiel d'artistes (métadonnées only)
     ports:
       - "8000:8000"
     volumes:
       - ./data:/data        # base (métadonnées + empreintes) persistée ici. Jamais d'audio.
+
+  admin:
+    build:
+      context: ./admin
+      args:
+        API_URL: http://api:8000   # cible du reverse-proxy /api/*, figée au build
+    image: shazam-mlg-admin
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+    # L'interface de gestion : http://localhost:3000

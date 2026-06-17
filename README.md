@@ -18,7 +18,8 @@ cd shazam-malgache
 docker compose up -d
 ```
 
-Open http://localhost:8000
+- Recognition demo: http://localhost:8000
+- **Management interface: http://localhost:3000**
 
 ## Install & run without Docker
 
@@ -33,9 +34,40 @@ uvicorn shazam_malgache.api:app
 
 Open http://localhost:8000
 
+## Management interface
+
+A separate Next.js admin app (in `admin/`) gives you a full view of the engine
+and lets you grow its catalog without the command line. With Docker it starts
+alongside the API on http://localhost:3000.
+
+It provides:
+
+- **Dashboard** — songs indexed, total fingerprints, catalog size, active jobs.
+- **Indexed songs** — browse/search what the engine can recognize, and delete
+  entries (drops their fingerprints).
+- **Artist catalog** — the reference list of Malagasy artists (public metadata),
+  to decide who to index next.
+- **Ingestion + YouTube pipeline** — paste one or many YouTube links (or upload
+  a file); each runs as a background job: *probe metadata → download → decode →
+  fingerprint → store*. The audio is dropped at the end — only fingerprints are
+  kept.
+- **Jobs** — live progress of every ingestion, refreshed automatically.
+
+Run it on its own (without Docker):
+
+```bash
+cd admin
+pnpm install
+API_URL=http://localhost:8000 pnpm dev   # http://localhost:3000
+```
+
+`API_URL` points the interface at your running API (default
+`http://localhost:8000`).
+
 ## Add a song
 
-The audio is read only to compute its fingerprint, then dropped.
+You can do this from the management interface above, or from the command line.
+Either way, the audio is read only to compute its fingerprint, then dropped.
 
 With Docker:
 

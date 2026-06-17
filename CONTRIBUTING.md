@@ -13,6 +13,17 @@ pytest -q
 
 Prefer Docker? `docker compose run --rm api pytest -q`.
 
+Working on the management interface? It's a Next.js app in `admin/`:
+
+```bash
+cd admin
+pnpm install
+API_URL=http://localhost:8000 pnpm dev   # talks to the running API
+```
+
+It only consumes the API's `/api/*` endpoints — the recognition engine stays in
+Python.
+
 ## Ground rules
 
 - **Never commit audio, fingerprint databases, or third-party APKs.** `.gitignore`
