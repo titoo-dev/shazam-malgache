@@ -73,27 +73,31 @@ _executor = ThreadPoolExecutor(
 )
 
 
-def ensure_table(conn: sqlite3.Connection) -> None:
+def ensure_table(conn) -> None:
     """Crée la table des jobs si besoin (idempotent, sans effet de bord)."""
-    conn.executescript(JOBS_SCHEMA)
-    conn.commit()
+    if db.IS_PG:
+        with conn.cursor() as cur:
+            cur.execute(JOBS_SCHEMA)  # psycopg2 accepte plusieurs instructions
+    else:
+        conn.executescript(JOBS_SCHEMA)
+        conn.commit()
 
 
-def init(conn: sqlite3.Connection) -> None:
+def init(conn) -> None:
     """À appeler UNE FOIS au démarrage : crée la table puis marque comme
     interrompus les jobs restés 'queued'/'running' d'un process précédent.
 
     Surtout pas à chaque requête : cela tuerait les jobs réellement en cours."""
     ensure_table(conn)
-    conn.execute(
+    db.execute(
+        conn,
         "UPDATE jobs SET status='error', error='interrompu (redémarrage du serveur)', "
         "updated_at=? WHERE status IN ('queued','running')",
         (_now(),),
     )
-    conn.commit()
 
 
-def _row_to_dict(row: sqlite3.Row | tuple, cols: list[str]) -> dict:
+def _row_to_dict(row: tuple, cols: list[str]) -> dict:
     return dict(zip(cols, row))
 
 
@@ -103,27 +107,23 @@ _COLS = [
 ]
 
 
-def list_jobs(conn: sqlite3.Connection, limit: int = 50) -> list[dict]:
-    rows = conn.execute(
+def list_jobs(conn, limit: int = 50) -> list[dict]:
+    rows = db.q(
+        conn,
         f"SELECT {','.join(_COLS)} FROM jobs ORDER BY created_at DESC LIMIT ?",
         (limit,),
-    ).fetchall()
+    )
     return [_row_to_dict(r, _COLS) for r in rows]
 
 
-def get_job(conn: sqlite3.Connection, job_id: str) -> dict | None:
-    row = conn.execute(
-        f"SELECT {','.join(_COLS)} FROM jobs WHERE id = ?", (job_id,)
-    ).fetchone()
+def get_job(conn, job_id: str) -> dict | None:
+    row = db.q1(conn, f"SELECT {','.join(_COLS)} FROM jobs WHERE id = ?", (job_id,))
     return _row_to_dict(row, _COLS) if row else None
 
 
-def active_count(conn: sqlite3.Connection) -> int:
-    return int(
-        conn.execute(
-            "SELECT COUNT(*) FROM jobs WHERE status IN ('queued','running')"
-        ).fetchone()[0]
-    )
+def active_count(conn) -> int:
+    row = db.q1(conn, "SELECT COUNT(*) FROM jobs WHERE status IN ('queued','running')")
+    return int(row[0])
 
 
 def submit(kind: str, *, url: str = "", title: str = "", artist: str = "",
@@ -133,13 +133,13 @@ def submit(kind: str, *, url: str = "", title: str = "", artist: str = "",
     now = _now()
     conn = db.connect(_db_path())
     ensure_table(conn)
-    conn.execute(
+    db.execute(
+        conn,
         "INSERT INTO jobs(id, kind, url, title, artist, status, stage, progress, "
         "message, created_at, updated_at) VALUES (?,?,?,?,?, 'queued','queued',0, "
         "'en attente', ?, ?)",
         (job_id, kind, url, title, artist, now, now),
     )
-    conn.commit()
     job = get_job(conn, job_id)
     conn.close()
 
@@ -152,8 +152,7 @@ def submit(kind: str, *, url: str = "", title: str = "", artist: str = "",
 def _update(conn, job_id, **fields) -> None:
     fields["updated_at"] = _now()
     sets = ", ".join(f"{k} = ?" for k in fields)
-    conn.execute(f"UPDATE jobs SET {sets} WHERE id = ?", (*fields.values(), job_id))
-    conn.commit()
+    db.execute(conn, f"UPDATE jobs SET {sets} WHERE id = ?", (*fields.values(), job_id))
 
 
 def _set_stage(conn, job_id, stage: str, message: str = "") -> None:
