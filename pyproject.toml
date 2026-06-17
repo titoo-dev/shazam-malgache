@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "shazam-malgache"
+version = "0.1.0"
+description = "Open-source, self-hostable Shazam-style audio recognition engine, tuned for Malagasy music 🇲🇬"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "titoo-dev" }]
+keywords = ["audio-fingerprinting", "music-recognition", "shazam", "malagasy", "madagascar"]
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Topic :: Multimedia :: Sound/Audio :: Analysis",
+]
+dependencies = [
+    "numpy>=1.26",
+    "scipy>=1.11",
+    "fastapi>=0.110",
+    "uvicorn>=0.29",
+    "python-multipart>=0.0.9",
+    "yt-dlp>=2024.1",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "httpx>=0.27"]
+
+[project.scripts]
+shazam-mlg-ingest = "shazam_malgache.ingest:main"
+
+[project.urls]
+Homepage = "https://github.com/titoo-dev/shazam-malgache"
+Issues = "https://github.com/titoo-dev/shazam-malgache/issues"
+
+[tool.setuptools]
+packages = ["shazam_malgache"]

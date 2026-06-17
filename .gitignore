@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+.pytest_cache/
+.DS_Store
+
+# Données locales — JAMAIS d'audio versionné, JAMAIS la base d'empreintes
+data/
+
+# Actifs de recherche privés (recon, analyse concurrence, catalogue) — NON publiés
+research/
+
+# Binaires audio / APK
+*.apk
+*.xapk
+*.db
+*.wav
+*.mp3
+*.m4a
+*.webm
