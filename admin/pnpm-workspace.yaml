@@ -1,0 +1,6 @@
+# Configuration pnpm. sharp (dép. optionnelle de Next pour l'optimisation
+# d'images) embarque un script de build. On l'approuve explicitement : pnpm 10
+# refuse sinon l'install en environnement non-interactif (Docker). sharp utilise
+# des binaires préconstruits (musl inclus), donc aucune compilation native.
+onlyBuiltDependencies:
+  - sharp
