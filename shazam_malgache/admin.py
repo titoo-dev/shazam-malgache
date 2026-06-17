@@ -11,14 +11,40 @@ métadonnées et des empreintes irréversibles.
 from __future__ import annotations
 
 import os
+import secrets
 import tempfile
 
-from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from pydantic import BaseModel
 
 from shazam_malgache import audio_io, catalog, db, jobs
 
-router = APIRouter(prefix="/api")
+# Basic-auth des endpoints d'administration. Activé UNIQUEMENT si ADMIN_USER et
+# ADMIN_PASSWORD sont définis (donc jamais en local/tests). La démo de
+# reconnaissance (/, /recognize, /songs) reste publique car hors de ce routeur.
+_security = HTTPBasic(auto_error=False)
+
+
+def _require_admin(credentials: HTTPBasicCredentials | None = Depends(_security)) -> None:
+    user = os.environ.get("ADMIN_USER")
+    pwd = os.environ.get("ADMIN_PASSWORD")
+    if not user or not pwd:
+        return  # auth désactivée
+    ok = (
+        credentials is not None
+        and secrets.compare_digest(credentials.username, user)
+        and secrets.compare_digest(credentials.password, pwd)
+    )
+    if not ok:
+        raise HTTPException(
+            status_code=401,
+            detail="Authentification requise",
+            headers={"WWW-Authenticate": "Basic"},
+        )
+
+
+router = APIRouter(prefix="/api", dependencies=[Depends(_require_admin)])
 
 
 def _db_path() -> str:

@@ -2,18 +2,21 @@
 # Les images sont construites par la CI GitHub et publiées sur GHCR ; Dokploy
 # les tire (pull) à chaque déploiement. On ne build rien ici.
 #
+# Stockage : PostgreSQL (service managé par Dokploy), via DATABASE_URL.
+# Les valeurs ${...} (secrets) sont fournies par le champ "env" du compose dans
+# Dokploy — JAMAIS commitées ici.
+#
 # Réseau : chaque service rejoint `dokploy-network` (externe) pour que Traefik
-# route les domaines, et le réseau `default` du compose pour que l'admin joigne
-# l'API en interne via http://api:8000 (URL figée au build de l'image admin).
+# route les domaines et que l'API joigne le Postgres managé ; et le réseau
+# `default` du compose pour que l'admin joigne l'API via http://api:8000.
 services:
   api:
     image: ghcr.io/titoo-dev/shazam-malgache-api:latest
     command: uvicorn shazam_malgache.api:app --host 0.0.0.0 --port 8000
     environment:
-      - SHAZAM_DB=/data/shazam.db
-      - CATALOG_DB=/data/catalog.db
-    volumes:
-      - shazam-data:/data        # empreintes + métadonnées persistées. Jamais d'audio.
+      - DATABASE_URL=${DATABASE_URL}      # postgresql://shazam:***@<pg>:5432/shazam
+      - ADMIN_USER=${ADMIN_USER}          # protège /api/* (la démo reste publique)
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
     expose:
       - 8000
     restart: unless-stopped
@@ -27,6 +30,9 @@ services:
     image: ghcr.io/titoo-dev/shazam-malgache-admin:latest
     depends_on:
       - api
+    environment:
+      - ADMIN_USER=${ADMIN_USER}          # basic-auth de toute l'interface
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
     expose:
       - 3000
     restart: unless-stopped
@@ -35,9 +41,6 @@ services:
       dokploy-network:
         aliases:
           - shazam-admin
-
-volumes:
-  shazam-data:
 
 networks:
   dokploy-network:
