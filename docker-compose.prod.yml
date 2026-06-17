@@ -12,6 +12,7 @@
 services:
   api:
     image: ghcr.io/titoo-dev/shazam-malgache-api:latest
+    pull_policy: always   # toujours tirer le :latest fraîchement publié par la CI
     command: uvicorn shazam_malgache.api:app --host 0.0.0.0 --port 8000
     environment:
       - DATABASE_URL=${DATABASE_URL}      # postgresql://shazam:***@<pg>:5432/shazam
@@ -28,6 +29,7 @@ services:
 
   admin:
     image: ghcr.io/titoo-dev/shazam-malgache-admin:latest
+    pull_policy: always   # toujours tirer le :latest fraîchement publié par la CI
     depends_on:
       - api
     environment:
