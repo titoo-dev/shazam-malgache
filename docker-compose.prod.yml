@@ -1,0 +1,44 @@
+# Compose de PRODUCTION — déployé par Dokploy (sourceType: raw).
+# Les images sont construites par la CI GitHub et publiées sur GHCR ; Dokploy
+# les tire (pull) à chaque déploiement. On ne build rien ici.
+#
+# Réseau : chaque service rejoint `dokploy-network` (externe) pour que Traefik
+# route les domaines, et le réseau `default` du compose pour que l'admin joigne
+# l'API en interne via http://api:8000 (URL figée au build de l'image admin).
+services:
+  api:
+    image: ghcr.io/titoo-dev/shazam-malgache-api:latest
+    command: uvicorn shazam_malgache.api:app --host 0.0.0.0 --port 8000
+    environment:
+      - SHAZAM_DB=/data/shazam.db
+      - CATALOG_DB=/data/catalog.db
+    volumes:
+      - shazam-data:/data        # empreintes + métadonnées persistées. Jamais d'audio.
+    expose:
+      - 8000
+    restart: unless-stopped
+    networks:
+      default: {}
+      dokploy-network:
+        aliases:
+          - shazam-api
+
+  admin:
+    image: ghcr.io/titoo-dev/shazam-malgache-admin:latest
+    depends_on:
+      - api
+    expose:
+      - 3000
+    restart: unless-stopped
+    networks:
+      default: {}
+      dokploy-network:
+        aliases:
+          - shazam-admin
+
+volumes:
+  shazam-data:
+
+networks:
+  dokploy-network:
+    external: true
