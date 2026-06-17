@@ -23,9 +23,10 @@ export function middleware(req: NextRequest) {
     }
   }
 
+  // NB : la valeur d'en-tête doit rester en ASCII/Latin-1 (pas de tiret cadratin).
   return new NextResponse("Authentification requise", {
     status: 401,
-    headers: { "WWW-Authenticate": 'Basic realm="Shazam Malgache — Gestion"' },
+    headers: { "WWW-Authenticate": 'Basic realm="Shazam Malgache Admin"' },
   });
 }
 
