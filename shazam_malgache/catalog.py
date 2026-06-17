@@ -93,6 +93,42 @@ def list_artists(search: str = "", sort: str = "rank", limit: int = 50, offset: 
     }
 
 
+def bulk_upsert(artists: list[dict]) -> int:
+    """Insère/met à jour des artistes du catalogue (upsert par id).
+
+    Utilisé pour semer le référentiel sur le déploiement (backend PostgreSQL).
+    """
+    if not artists:
+        return 0
+    rows = [tuple(a.get(f) for f in _FIELDS) for a in artists]
+    cols = ",".join(_FIELDS)
+    conn = db.connect()
+    if db.IS_PG:
+        from psycopg2.extras import execute_values
+
+        updates = ",".join(f"{c}=EXCLUDED.{c}" for c in _FIELDS if c != "id")
+        with conn.cursor() as cur:
+            execute_values(
+                cur,
+                f"INSERT INTO catalog_artists ({cols}) VALUES %s "
+                f"ON CONFLICT (id) DO UPDATE SET {updates}",
+                rows,
+            )
+    else:
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS catalog_artists (id INTEGER PRIMARY KEY, "
+            "artist_name TEXT, slug TEXT, audio_count INTEGER, play_count INTEGER, "
+            "rank INTEGER, isni_code TEXT, ipi_code TEXT, uuid TEXT)"
+        )
+        ph = ",".join("?" * len(_FIELDS))
+        conn.executemany(
+            f"INSERT OR REPLACE INTO catalog_artists ({cols}) VALUES ({ph})", rows
+        )
+        conn.commit()
+    conn.close()
+    return len(rows)
+
+
 def stats() -> dict:
     """Statistiques globales du catalogue de référence."""
     if db.IS_PG:

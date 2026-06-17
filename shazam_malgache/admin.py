@@ -121,6 +121,16 @@ def remove_song(song_id: int) -> dict:
 
 # --- Référentiel d'artistes (catalogue Moozik) ------------------------------
 
+class CatalogImport(BaseModel):
+    artists: list[dict]
+
+
+@router.post("/catalog/import")
+def import_catalog(body: CatalogImport) -> dict:
+    """Import en masse d'artistes dans le référentiel (upsert). Protégé par l'auth."""
+    return {"imported": catalog.bulk_upsert(body.artists)}
+
+
 @router.get("/catalog/artists")
 def get_catalog_artists(
     q: str = "",
